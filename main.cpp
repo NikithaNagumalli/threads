@@ -7,6 +7,7 @@
 #include <thread>
 #include <condition_variable>
 #include <vector>
+#include <functional>
 
 using std::cout;
 using std::endl;
@@ -17,11 +18,12 @@ using std::atomic;
 using std::mutex;
 using std::condition_variable;
 using std::vector;
+using std::function;
 
 class ThreadPool {
     private:
         vector<std::thread> _threads;
-        queue<tuple<int, time_t>> tasks;
+        queue<function<void(int)>> tasks;
         atomic<int> count = 0; // TODO: does this need to be atomic if it's only being updated in mutex locked section?
         mutex mtx;
         condition_variable cv;
@@ -29,7 +31,7 @@ class ThreadPool {
 
         void process_task(int thread_num) {
             while (true) {
-                tuple<int, time_t> task;
+                function<void(int)> task;
                 {    
                     std::unique_lock<mutex> lock(mtx);
                     cv.wait(lock, [this] {return !tasks.empty() || _stop;});
@@ -41,7 +43,8 @@ class ThreadPool {
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 std::thread::id this_id = std::this_thread::get_id();
-                cout << "Task Count: " << std::get<0>(task) << " at time: " << std::get<1>(task) << " processed by " << this_id << endl;
+                // cout << "Task Count: " << std::get<0>(task) << " at time: " << std::get<1>(task) << " processed by " << this_id << endl;
+                task(thread_num);
             }
         }
 
@@ -69,7 +72,7 @@ class ThreadPool {
             time(&timestamp);
         
             mtx.lock();
-            tasks.push(make_tuple(++count, timestamp));
+            tasks.push([this, timestamp](int thread_num) { cout << "Task Count: " << ++count  << " processed by thread num: " << thread_num << endl;} );
             mtx.unlock();
             // cout << "Pushed task number: " << count << endl;
             cv.notify_one();
@@ -79,11 +82,13 @@ class ThreadPool {
 
 
 int main() {
-    ThreadPool pool(100);
+    ThreadPool pool(5);
 
-    int tasks_num = 1000;
-    for (int i = 0; i < tasks_num; i++) {
-        pool.create_task();
+    while (true) {
+        int tasks_num = 10;
+        for (int i = 0; i < tasks_num; i++) {
+            pool.create_task();
+        }
     }
 
 }
