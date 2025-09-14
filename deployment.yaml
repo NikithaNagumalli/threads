@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tasks-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tasks-loop
+  template:
+    metadata:
+      labels:
+        app: tasks-loop
+    spec:
+      containers:
+      - name: tasks-container
+        image: us-central1-docker.pkg.dev/processtasks/tasks-app/tasks-loop:1
